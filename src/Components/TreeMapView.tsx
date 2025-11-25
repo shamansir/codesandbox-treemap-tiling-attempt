@@ -37,7 +37,7 @@ export const TreeMapView: React.FC<Props> = ({ sources }) => {
                 top: rect.y,
                 width: rect.width,
                 height: rect.height,
-                border: "1px solid #fff",
+                border: "1px solid #000",
                 boxSizing: "border-box",
                 fontSize: 10,
                 overflow: "hidden",

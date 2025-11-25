@@ -65,14 +65,14 @@ export function treeMap(
 
   const rects: Positioned[] = [];
 
-  layoutSliceAndDice(
+  layoutRecursive(
     sorted,
     0,
     0,
     options.width,
     options.height,
     options.direction,
-    total,
+    // total,
     options.padding,
     rects
   );
@@ -139,6 +139,80 @@ function layoutSliceAndDice(
   // NOTE:
   // This version is a pure slice-and-dice (no deeper recursion).
   // Still a valid treemap; easy to understand & explain in interview.
+}
+
+
+function layoutRecursive(
+  items: Source[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  direction: Direction,
+  padding: number,
+  output: Positioned[]
+) {
+  if (items.length === 0 || width <= 0 || height <= 0) return;
+
+  if (items.length === 1) {
+    const source = items[0];
+    const rect = applyPadding({ x, y, width, height }, padding);
+    output.push({ source, rect });
+    return;
+  }
+
+  // Calculate total value
+  const total = items.reduce((sum, it) => sum + it.value, 0);
+
+  // Find best split point (approximately half the total value)
+  let leftSum = 0;
+  let splitIndex = 0;
+
+  for (let i = 0; i < items.length - 1; i++) {
+    leftSum += items[i].value;
+    if (leftSum >= total / 2) {
+      // Check if this split or the previous is closer to 50/50
+      const currentRatio = leftSum / total;
+      const prevRatio = (leftSum - items[i].value) / total;
+
+      if (Math.abs(currentRatio - 0.5) < Math.abs(prevRatio - 0.5)) {
+        splitIndex = i + 1;
+      } else {
+        splitIndex = i;
+        leftSum -= items[i].value;
+      }
+      break;
+    }
+    splitIndex = i + 1;
+  }
+
+  const leftItems = items.slice(0, splitIndex);
+  const rightItems = items.slice(splitIndex);
+
+  if (leftItems.length === 0 || rightItems.length === 0) {
+    // Fallback: just place all items
+    layoutRecursive(items, x, y, width, height, direction, padding, output);
+    return;
+  }
+
+  const leftRatio = leftSum / total;
+  const nextDirection: Direction = direction === "horizontal" ? "vertical" : "horizontal";
+
+  if (direction === "horizontal") {
+    // Split horizontally
+    const leftWidth = width * leftRatio;
+    const rightWidth = width - leftWidth;
+
+    layoutRecursive(leftItems, x, y, leftWidth, height, nextDirection, padding, output);
+    layoutRecursive(rightItems, x + leftWidth, y, rightWidth, height, nextDirection, padding, output);
+  } else {
+    // Split vertically
+    const leftHeight = height * leftRatio;
+    const rightHeight = height - leftHeight;
+
+    layoutRecursive(leftItems, x, y, width, leftHeight, nextDirection, padding, output);
+    layoutRecursive(rightItems, x, y + leftHeight, width, rightHeight, nextDirection, padding, output);
+  }
 }
 
 function applyPadding(rect: Rect, padding: number): Rect {
