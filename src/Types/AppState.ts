@@ -2,6 +2,11 @@ import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import type { AppAction } from './AppAction';
 import type { PresentedLot, Lot, Bid, Account } from './index';
 
+// Configuration constants
+export const AUCTION_DURATION_MS = 60000; // 1 minute
+export const FREEZE_DURATION_MS = 3000; // 3 seconds freeze between auctions
+export const LOTS_PER_AUCTION = 3;
+
 export interface AppState {
   lots: Lot[];
   bids: Bid[];
@@ -10,11 +15,9 @@ export interface AppState {
   viewMode: 'treemap' | 'list';
   availableLotIds: string[];
   auctionEndTime: number | null;
+  isFrozen: boolean;
+  freezeEndTime: number | null;
 }
-
-// Configuration constants
-export const AUCTION_DURATION_MS = 60000; // 1 minute
-export const LOTS_PER_AUCTION = 3;
 
 // Master list of all possible lots
 const ALL_LOTS: PresentedLot[] = [
@@ -62,6 +65,8 @@ const initialState: AppState = {
   viewMode: 'treemap',
   availableLotIds: [],
   auctionEndTime: null,
+  isFrozen: false,
+  freezeEndTime: null,
 };
 
 function getRandomLots(lots: Lot[], count: number): string[] {
@@ -75,6 +80,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
       const { lotId, amount } = action.payload;
 
       if (!state.currentAccountId) return state;
+
+      // Prevent bidding during freeze period
+      if (state.isFrozen) return state;
 
       const lot = state.lots.find(l => l.id === lotId);
       if (!lot || amount < lot.minPrice) return state;
@@ -111,6 +119,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'REMOVE_BID': {
       const { lotId } = action.payload;
+
+      // Prevent removing bids during freeze period
+      if (state.isFrozen) return state;
+
       return {
         ...state,
         bids: state.bids.filter(
@@ -139,6 +151,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         availableLotIds: action.payload.lotIds,
         auctionEndTime: action.payload.endTime,
         bids: [], // Clear all bids for new auction
+        isFrozen: false,
+        freezeEndTime: null,
       };
     }
 
@@ -185,6 +199,16 @@ function appReducer(state: AppState, action: AppAction): AppState {
         bids: [],
         availableLotIds: [],
         auctionEndTime: null,
+        isFrozen: true,
+        freezeEndTime: Date.now() + FREEZE_DURATION_MS,
+      };
+    }
+
+    case 'END_FREEZE': {
+      return {
+        ...state,
+        isFrozen: false,
+        freezeEndTime: null,
       };
     }
 
@@ -196,7 +220,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
 export function useAppState() {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Start new auction automatically
+  // Start new auction automatically after freeze ends
   useEffect(() => {
     const startNewAuction = () => {
       const randomLotIds = getRandomLots(state.lots, LOTS_PER_AUCTION);
@@ -205,10 +229,10 @@ export function useAppState() {
     };
 
     // Start first auction
-    if (state.auctionEndTime === null) {
+    if (state.auctionEndTime === null && !state.isFrozen) {
       startNewAuction();
     }
-  }, [state.auctionEndTime, state.lots]);
+  }, [state.auctionEndTime, state.isFrozen, state.lots]);
 
   // Timer to end auction
   useEffect(() => {
@@ -226,6 +250,23 @@ export function useAppState() {
 
     return () => clearTimeout(timer);
   }, [state.auctionEndTime]);
+
+  // Timer to end freeze period
+  useEffect(() => {
+    if (!state.freezeEndTime) return;
+
+    const timeLeft = state.freezeEndTime - Date.now();
+    if (timeLeft <= 0) {
+      dispatch({ type: 'END_FREEZE' });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      dispatch({ type: 'END_FREEZE' });
+    }, timeLeft);
+
+    return () => clearTimeout(timer);
+  }, [state.freezeEndTime]);
 
   // Memoized current account
   const currentAccount = useMemo(
@@ -275,11 +316,14 @@ export function useAppState() {
       .reduce((sum, b) => sum + b.amount, 0);
   }, [state.bids, state.currentAccountId]);
 
-  // Calculate time remaining
+  // Calculate time remaining (including freeze time)
   const timeRemaining = useMemo(() => {
+    if (state.freezeEndTime) {
+      return Math.max(0, state.freezeEndTime - Date.now());
+    }
     if (!state.auctionEndTime) return 0;
     return Math.max(0, state.auctionEndTime - Date.now());
-  }, [state.auctionEndTime]);
+  }, [state.auctionEndTime, state.freezeEndTime]);
 
   // Callbacks
   const placeBid = useCallback(
@@ -321,5 +365,7 @@ export function useAppState() {
     removeBid,
     setAccount,
     setViewMode,
+    isFrozen: state.isFrozen,
   };
+
 }

@@ -18,6 +18,7 @@ export default function App() {
     removeBid,
     setAccount,
     setViewMode,
+    isFrozen,
   } = useAppState();
 
 
@@ -48,6 +49,7 @@ export default function App() {
           timeRemaining={timeRemaining}
           onPlaceBid={placeBid}
           onRemoveBid={removeBid}
+          isFrozen={isFrozen}
         />
       )}
     </div>

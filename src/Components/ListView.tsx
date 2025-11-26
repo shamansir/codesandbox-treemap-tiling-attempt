@@ -9,6 +9,7 @@ interface Props {
   timeRemaining: number;
   onPlaceBid: (lotId: string, amount: number) => void;
   onRemoveBid: (lotId: string) => void;
+  isFrozen: boolean;
 }
 
 export const ListView: React.FC<Props> = ({
@@ -17,6 +18,7 @@ export const ListView: React.FC<Props> = ({
   timeRemaining,
   onPlaceBid,
   onRemoveBid,
+  isFrozen,
 }) => {
   const [bidAmounts, setBidAmounts] = useState<Record<string, string>>({});
   const [displayTime, setDisplayTime] = useState(timeRemaining);
@@ -72,14 +74,21 @@ export const ListView: React.FC<Props> = ({
         alignItems: 'center',
         marginBottom: 20,
         padding: 15,
-        background: '#f8f9fa',
+        background: isFrozen ? '#fff3cd' : '#f8f9fa',
         borderRadius: 8,
       }}>
-        <h2 style={{ margin: 0 }}>Stock Auction - List View</h2>
+        <h2 style={{ margin: 0 }}>
+          Stock Auction - List View
+          {isFrozen && (
+            <span style={{ marginLeft: 10, color: '#856404', fontSize: 16 }}>
+              (Processing Results...)
+            </span>
+          )}
+        </h2>
         <div style={{
           fontSize: 24,
           fontWeight: 'bold',
-          color: displayTime < 10000 ? '#dc3545' : '#007bff',
+          color: isFrozen ? '#856404' : displayTime < 10000 ? '#dc3545' : '#007bff',
         }}>
           ⏱️ {formatTime(displayTime)}
         </div>

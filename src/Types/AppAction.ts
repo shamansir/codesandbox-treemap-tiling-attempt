@@ -4,4 +4,5 @@ export type AppAction =
   | { type: 'SET_ACCOUNT'; payload: string }
   | { type: 'SET_VIEW_MODE'; payload: 'treemap' | 'list' }
   | { type: 'START_AUCTION'; payload: { lotIds: string[]; endTime: number } }
-  | { type: 'END_AUCTION' };
+  | { type: 'END_AUCTION' }
+  | { type: 'END_FREEZE' };
