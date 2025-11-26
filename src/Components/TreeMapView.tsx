@@ -1,28 +1,39 @@
-import React from "react";
+import React, { useMemo }  from "react";
 import * as TreeMap from "../TreeMap/TreeMap";
 
-export type Plate = {
+export type LotInfo = {
   id: string;
   label: string;
-  value: number;
+  currentValue: number;
+  ownerId: string | null;
+  ownerName: string | null;
 };
 
 export type Props = {
-  sources: Plate[];
+  sources: LotInfo[];
 };
 
 export const TreeMapView: React.FC<Props> = ({ sources }) => {
-  const positioned = TreeMap.treeMap(sources, (p) => p.value, {
-    width: 800,
-    height: 400,
-    direction: "horizontal",
-    padding: 2,
-    minValue: 0.01,
-  });
+  // Calculate max price for color normalization
+  const maxPrice = useMemo(
+    () => Math.max(...sources.map(s => s.currentValue), 1),
+    [sources]
+  );
+
+  const positioned = useMemo(
+    () => TreeMap.treeMap(sources, (p) => p.currentValue, {
+      width: 800,
+      height: 400,
+      direction: "horizontal",
+      padding: 2,
+      minValue: 0.01,
+    }),
+    [sources]
+  );
 
   return (
     <div>
-      <h2>Stock Treemap (by value)</h2>
+      <h2>Stock Portfolio Treemap (by current price)</h2>
       <div
         style={{
           position: "relative",
@@ -32,17 +43,26 @@ export const TreeMapView: React.FC<Props> = ({ sources }) => {
         }}
       >
         {positioned.map(({ rect, source }) => (
-          <TreeMapPlate key={source.id} rect={rect} source={source} />
+          <TreeMapPlate
+            key={source.id}
+            rect={rect}
+            source={source}
+            maxPrice={maxPrice}
+          />
         ))}
       </div>
     </div>
   );
 };
 
-const TreeMapPlate: React.FC<TreeMap.Positioned<Plate>> = ({
+const TreeMapPlate: React.FC<TreeMap.Positioned<LotInfo> & { maxPrice: number }> = ({
   rect,
   source,
+  maxPrice,
 }) => {
+  const normalizedValue = source.currentValue / maxPrice;
+  const hasOwner = source.ownerId !== null;
+
   return (
     <div
       style={{
@@ -59,11 +79,28 @@ const TreeMapPlate: React.FC<TreeMap.Positioned<Plate>> = ({
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        background: valueToColor(source.value),
+        background: valueToColor(normalizedValue),
       }}
     >
-      <div style={{ fontWeight: 'bold' }}>{source.label}</div>
-      <div>{source.value.toFixed(3)}</div>
+      <div style={{
+        fontWeight: 'bold',
+        color: hasOwner ? '#888' : '#000',
+      }}>
+        {source.label}
+      </div>
+      <div style={{ fontSize: 9 }}>
+        ${source.currentValue.toFixed(2)}
+      </div>
+      {hasOwner && (
+        <div style={{
+          fontSize: 8,
+          color: '#555',
+          marginTop: 2,
+          fontStyle: 'italic',
+        }}>
+          Owner: {source.ownerName}
+        </div>
+      )}
     </div>
   );
 };

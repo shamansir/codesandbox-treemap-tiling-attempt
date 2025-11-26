@@ -12,6 +12,7 @@ export default function App() {
     lotsWithBids,
     sortedLots,
     usedBalance,
+    timeRemaining,
     placeBid,
     removeBid,
     setAccount,
@@ -37,11 +38,12 @@ export default function App() {
       />
 
       {state.viewMode === 'treemap' ? (
-        <TreeMapView sources={state.lots} />
+        <TreeMapView sources={lotsWithBids.map((lot) => ({ ...lot, currentValue: lot.currentPrice }))} />
       ) : (
         <ListView
           lots={sortedLots}
           availableBalance={availableBalance}
+          timeRemaining={timeRemaining}
           onPlaceBid={placeBid}
           onRemoveBid={removeBid}
         />

@@ -1,23 +1,61 @@
-import { useReducer, useMemo, useCallback } from 'react';
-import type { AppState, AppAction, Lot, Bid } from '../Types';
+import { useReducer, useMemo, useCallback, useEffect } from 'react';
+import type { AppState, AppAction, Lot, Bid, Account } from './index';
+
+// Configuration constants
+export const AUCTION_DURATION_MS = 60000; // 1 minute
+export const LOTS_PER_AUCTION = 3;
+
+// Master list of all possible lots
+const ALL_LOTS: Omit<Lot, 'currentPrice' | 'ownerId'>[] = [
+  { id: "lot-1", label: "Tesla", minPrice: 100 },
+  { id: "lot-2", label: "Apple", minPrice: 150 },
+  { id: "lot-3", label: "Google", minPrice: 200 },
+  { id: "lot-4", label: "Amazon", minPrice: 180 },
+  { id: "lot-5", label: "Microsoft", minPrice: 250 },
+  { id: "lot-6", label: "Meta", minPrice: 120 },
+  { id: "lot-7", label: "Netflix", minPrice: 90 },
+  { id: "lot-8", label: "NVIDIA", minPrice: 300 },
+  { id: "lot-9", label: "AMD", minPrice: 110 },
+  { id: "lot-10", label: "Intel", minPrice: 95 },
+  { id: "lot-11", label: "IBM", minPrice: 130 },
+  { id: "lot-12", label: "Oracle", minPrice: 85 },
+  { id: "lot-13", label: "Salesforce", minPrice: 170 },
+  { id: "lot-14", label: "Adobe", minPrice: 220 },
+  { id: "lot-15", label: "PayPal", minPrice: 75 },
+  { id: "lot-16", label: "Square", minPrice: 65 },
+  { id: "lot-17", label: "Uber", minPrice: 55 },
+  { id: "lot-18", label: "Lyft", minPrice: 45 },
+  { id: "lot-19", label: "Airbnb", minPrice: 140 },
+  { id: "lot-20", label: "Spotify", minPrice: 80 },
+  { id: "lot-21", label: "Zoom", minPrice: 70 },
+  { id: "lot-22", label: "Slack", minPrice: 60 },
+  { id: "lot-23", label: "Twitter", minPrice: 50 },
+  { id: "lot-24", label: "Snap", minPrice: 40 },
+  { id: "lot-25", label: "Pinterest", minPrice: 35 },
+];
 
 const initialState: AppState = {
-  lots: [
-    { id: "lot-1", label: "Tesla", value: 0.75 },
-    { id: "lot-2", label: "Apple", value: 0.85 },
-    { id: "lot-3", label: "Google", value: 0.65 },
-    { id: "lot-4", label: "Amazon", value: 0.55 },
-    { id: "lot-5", label: "Microsoft", value: 0.90 },
-  ],
+  lots: ALL_LOTS.map(lot => ({
+    ...lot,
+    currentPrice: lot.minPrice,
+    ownerId: null,
+  })),
   bids: [],
   accounts: [
-    { id: "acc-1", name: "Alice", balance: 1000 },
-    { id: "acc-2", name: "Bob", balance: 1500 },
-    { id: "acc-3", name: "Charlie", balance: 2000 },
+    { id: "acc-1", name: "Alice", balance: 5000 },
+    { id: "acc-2", name: "Bob", balance: 7500 },
+    { id: "acc-3", name: "Charlie", balance: 10000 },
   ],
   currentAccountId: "acc-1",
   viewMode: 'treemap',
+  availableLotIds: [],
+  auctionEndTime: null,
 };
+
+function getRandomLots(lots: Lot[], count: number): string[] {
+  const shuffled = [...lots].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count).map(lot => lot.id);
+}
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -26,19 +64,31 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
       if (!state.currentAccountId) return state;
 
-      const account = state.accounts.find(a => a.id === state.currentAccountId);
-      if (!account || account.balance < amount) return state;
+      const lot = state.lots.find(l => l.id === lotId);
+      if (!lot || amount < lot.minPrice) return state;
 
-      // Remove existing bid from this account
+      if (!state.availableLotIds.includes(lotId)) return state;
+
+      const account = state.accounts.find(a => a.id === state.currentAccountId);
+      if (!account) return state;
+
+      // Calculate used balance (excluding current bid on this lot)
+      const otherBids = state.bids.filter(
+        b => b.accountId === state.currentAccountId && b.lotId !== lotId
+      );
+      const usedBalance = otherBids.reduce((sum, b) => sum + b.amount, 0);
+
+      if (account.balance < usedBalance + amount) return state;
+
+      // Remove existing bid on this lot from this account
       const filteredBids = state.bids.filter(
-        b => b.accountId !== state.currentAccountId
+        b => !(b.lotId === lotId && b.accountId === state.currentAccountId)
       );
 
       const newBid: Bid = {
         lotId,
         accountId: state.currentAccountId,
         amount,
-        timestamp: Date.now(),
       };
 
       return {
@@ -71,10 +121,58 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
-    case 'UPDATE_VALUES': {
+    case 'START_AUCTION': {
       return {
         ...state,
-        lots: action.payload,
+        availableLotIds: action.payload.lotIds,
+        auctionEndTime: action.payload.endTime,
+        bids: [], // Clear all bids for new auction
+      };
+    }
+
+    case 'END_AUCTION': {
+      // Process winning bids
+      const updatedLots = state.lots.map(lot => {
+        if (!state.availableLotIds.includes(lot.id)) return lot;
+
+        const lotBids = state.bids.filter(b => b.lotId === lot.id);
+        if (lotBids.length === 0) return lot;
+
+        // Find highest bid
+        const winningBid = lotBids.reduce((max, bid) =>
+          bid.amount > max.amount ? bid : max
+        );
+
+        return {
+          ...lot,
+          currentPrice: winningBid.amount,
+          ownerId: winningBid.accountId,
+        };
+      });
+
+      // Deduct winning bids from account balances
+      const updatedAccounts = state.accounts.map(account => {
+        const winningBids = state.bids.filter(bid => {
+          const lotBids = state.bids.filter(b => b.lotId === bid.lotId);
+          const maxBid = Math.max(...lotBids.map(b => b.amount));
+          return bid.accountId === account.id && bid.amount === maxBid;
+        });
+
+        const totalCost = winningBids.reduce((sum, b) => sum + b.amount, 0);
+
+        return {
+          ...account,
+          balance: account.balance - totalCost,
+        };
+      });
+
+      return {
+        ...state,
+        lots: updatedLots,
+        accounts: updatedAccounts,
+        bids: [],
+        availableLotIds: [],
+        auctionEndTime: null,
       };
     }
 
@@ -86,67 +184,118 @@ function appReducer(state: AppState, action: AppAction): AppState {
 export function useAppState() {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
+  // Start new auction automatically
+  useEffect(() => {
+    const startNewAuction = () => {
+      const randomLotIds = getRandomLots(state.lots, LOTS_PER_AUCTION);
+      const endTime = Date.now() + AUCTION_DURATION_MS;
+      dispatch({ type: 'START_AUCTION', payload: { lotIds: randomLotIds, endTime } });
+    };
+
+    // Start first auction
+    if (state.auctionEndTime === null) {
+      startNewAuction();
+    }
+  }, [state.auctionEndTime, state.lots]);
+
+  // Timer to end auction
+  useEffect(() => {
+    if (!state.auctionEndTime) return;
+
+    const timeLeft = state.auctionEndTime - Date.now();
+    if (timeLeft <= 0) {
+      dispatch({ type: 'END_AUCTION' });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      dispatch({ type: 'END_AUCTION' });
+    }, timeLeft);
+
+    return () => clearTimeout(timer);
+  }, [state.auctionEndTime]);
+
   // Memoized current account
   const currentAccount = useMemo(
     () => state.accounts.find(a => a.id === state.currentAccountId) || null,
     [state.accounts, state.currentAccountId]
   );
 
-  // Memoized plates with bid information
+  // Memoized lots with bid information
   const lotsWithBids = useMemo(() => {
     return state.lots.map(lot => {
       const lotBids = state.bids.filter(b => b.lotId === lot.id);
-      const totalBidAmount = lotBids.reduce((sum, b) => sum + b.amount, 0);
+      const highestBid = lotBids.length > 0
+        ? Math.max(...lotBids.map(b => b.amount))
+        : 0;
       const currentUserBid = lotBids.find(b => b.accountId === state.currentAccountId);
+      const isAvailable = state.availableLotIds.includes(lot.id);
+      const owner = lot.ownerId ? state.accounts.find(a => a.id === lot.ownerId) : null;
 
       return {
         ...lot,
         totalBids: lotBids.length,
-        totalBidAmount,
+        highestBid,
         currentUserBid: currentUserBid?.amount || 0,
         hasBid: !!currentUserBid,
+        isAvailable,
+        ownerName: owner?.name || null,
       };
     });
-  }, [state.lots, state.bids, state.currentAccountId]);
+  }, [state.lots, state.bids, state.currentAccountId, state.availableLotIds, state.accounts]);
 
-  // Memoized sorted plates for list view
+  // Memoized sorted lots for list view
   const sortedLots = useMemo(() => {
-    return [...lotsWithBids].sort((a, b) => b.value - a.value);
+    return [...lotsWithBids].sort((a, b) => {
+      // Available lots first
+      if (a.isAvailable !== b.isAvailable) {
+        return a.isAvailable ? -1 : 1;
+      }
+      // Then by current price descending
+      return b.currentPrice - a.currentPrice;
+    });
   }, [lotsWithBids]);
 
   // Memoized used balance
   const usedBalance = useMemo(() => {
-    const userBid = state.bids.find(b => b.accountId === state.currentAccountId);
-    return userBid?.amount || 0;
+    return state.bids
+      .filter(b => b.accountId === state.currentAccountId)
+      .reduce((sum, b) => sum + b.amount, 0);
   }, [state.bids, state.currentAccountId]);
+
+  // Calculate time remaining
+  const timeRemaining = useMemo(() => {
+    if (!state.auctionEndTime) return 0;
+    return Math.max(0, state.auctionEndTime - Date.now());
+  }, [state.auctionEndTime]);
 
   // Callbacks
   const placeBid = useCallback(
     (lotId: string, amount: number) => {
       dispatch({ type: 'PLACE_BID', payload: { lotId, amount } });
     },
-    [dispatch]
+    []
   );
 
   const removeBid = useCallback(
     (lotId: string) => {
       dispatch({ type: 'REMOVE_BID', payload: { lotId } });
     },
-    [dispatch]
+    []
   );
 
   const setAccount = useCallback(
     (accountId: string) => {
       dispatch({ type: 'SET_ACCOUNT', payload: accountId });
     },
-    [dispatch]
+    []
   );
 
   const setViewMode = useCallback(
     (mode: 'treemap' | 'list') => {
       dispatch({ type: 'SET_VIEW_MODE', payload: mode });
     },
-    [dispatch]
+    []
   );
 
   return {
@@ -155,6 +304,7 @@ export function useAppState() {
     lotsWithBids,
     sortedLots,
     usedBalance,
+    timeRemaining,
     placeBid,
     removeBid,
     setAccount,

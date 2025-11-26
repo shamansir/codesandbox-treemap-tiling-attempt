@@ -1,14 +1,15 @@
 export interface Lot {
   id: string;
   label: string;
-  value: number;
+  minPrice: number;
+  currentPrice: number;
+  ownerId: string | null;
 }
 
 export interface Bid {
   lotId: string;
   accountId: string;
   amount: number;
-  timestamp: number;
 }
 
 export interface Account {
@@ -23,6 +24,8 @@ export interface AppState {
   accounts: Account[];
   currentAccountId: string | null;
   viewMode: 'treemap' | 'list';
+  availableLotIds: string[];
+  auctionEndTime: number | null;
 }
 
 export type AppAction =
@@ -30,4 +33,5 @@ export type AppAction =
   | { type: 'REMOVE_BID'; payload: { lotId: string } }
   | { type: 'SET_ACCOUNT'; payload: string }
   | { type: 'SET_VIEW_MODE'; payload: 'treemap' | 'list' }
-  | { type: 'UPDATE_VALUES'; payload: Lot[] };
+  | { type: 'START_AUCTION'; payload: { lotIds: string[]; endTime: number } }
+  | { type: 'END_AUCTION' };
