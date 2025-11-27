@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { valueToColor } from './TreeMapView';
-import { LotListing } from '../Types';
-
+import { LotListing } from '../Types/Auction';
+import { ShapeIcon } from "./ShapeIcon";
 
 interface Props {
   lots: LotListing[];
@@ -99,7 +99,8 @@ export const ListView: React.FC<Props> = ({
             return (
               <tr key={lot.id} style={rowStyle}>
                 <td style={cellStyle}>
-                  <strong>{lot.label}</strong>
+                  <ShapeIcon shape={lot.shape.type} color={lot.shape.color} size={20} />
+                  <strong style={{ marginLeft: 8 }}>{lot.label}</strong>
                   {lot.isAvailable && !isFrozen && (
                     <span style={{
                       marginLeft: 8,

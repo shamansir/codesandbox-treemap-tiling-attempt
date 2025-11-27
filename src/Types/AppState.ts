@@ -1,6 +1,7 @@
 import { useReducer, useMemo, useCallback, useEffect, useState } from 'react';
 import type { AppAction } from './AppAction';
-import type { PresentedLot, Lot, Bid, Account } from './index';
+import type { PresentedLot, Lot, Bid, Account } from './Auction';
+import { SHAPE_COLORS } from './Shape';
 
 // Configuration constants
 export const AUCTION_DURATION_MS = 60000; // 1 minute
@@ -22,31 +23,31 @@ export interface AppState {
 // Master list of all possible lots
 const ALL_LOTS: PresentedLot[] = [
 // const ALL_LOTS: Omit<Lot, 'currentPrice' | 'ownerId'>[] = [
-  { id: "lot-1", label: "Tesla", minPrice: 100 },
-  { id: "lot-2", label: "Apple", minPrice: 150 },
-  { id: "lot-3", label: "Google", minPrice: 200 },
-  { id: "lot-4", label: "Amazon", minPrice: 180 },
-  { id: "lot-5", label: "Microsoft", minPrice: 250 },
-  { id: "lot-6", label: "Meta", minPrice: 120 },
-  { id: "lot-7", label: "Netflix", minPrice: 90 },
-  { id: "lot-8", label: "NVIDIA", minPrice: 300 },
-  { id: "lot-9", label: "AMD", minPrice: 110 },
-  { id: "lot-10", label: "Intel", minPrice: 95 },
-  { id: "lot-11", label: "IBM", minPrice: 130 },
-  { id: "lot-12", label: "Oracle", minPrice: 85 },
-  { id: "lot-13", label: "Salesforce", minPrice: 170 },
-  { id: "lot-14", label: "Adobe", minPrice: 220 },
-  { id: "lot-15", label: "PayPal", minPrice: 75 },
-  { id: "lot-16", label: "Square", minPrice: 65 },
-  { id: "lot-17", label: "Uber", minPrice: 55 },
-  { id: "lot-18", label: "Lyft", minPrice: 45 },
-  { id: "lot-19", label: "Airbnb", minPrice: 140 },
-  { id: "lot-20", label: "Spotify", minPrice: 80 },
-  { id: "lot-21", label: "Zoom", minPrice: 70 },
-  { id: "lot-22", label: "Slack", minPrice: 60 },
-  { id: "lot-23", label: "Twitter", minPrice: 50 },
-  { id: "lot-24", label: "Snap", minPrice: 40 },
-  { id: "lot-25", label: "Pinterest", minPrice: 35 },
+  { id: "lot-1", label: "Tesla", minPrice: 100, shape : { type: 'circle', color: SHAPE_COLORS[0] } },
+  { id: "lot-2", label: "Apple", minPrice: 150, shape : { type: 'square', color: SHAPE_COLORS[1] } },
+  { id: "lot-3", label: "Google", minPrice: 200, shape : { type: 'triangle', color: SHAPE_COLORS[2] } },
+  { id: "lot-4", label: "Amazon", minPrice: 180, shape : { type: 'hexagon', color: SHAPE_COLORS[3] } },
+  { id: "lot-5", label: "Microsoft", minPrice: 250, shape : { type: 'star', color: SHAPE_COLORS[4] } },
+  { id: "lot-6", label: "Meta", minPrice: 120, shape : { type: 'diamond', color: SHAPE_COLORS[5] } },
+  { id: "lot-7", label: "Netflix", minPrice: 90, shape : { type: 'circle', color: SHAPE_COLORS[6] } },
+  { id: "lot-8", label: "NVIDIA", minPrice: 300, shape : { type: 'square', color: SHAPE_COLORS[7] } },
+  { id: "lot-9", label: "AMD", minPrice: 110, shape : { type: 'triangle', color: SHAPE_COLORS[0] } },
+  { id: "lot-10", label: "Intel", minPrice: 95, shape : { type: 'hexagon', color: SHAPE_COLORS[1] } },
+  { id: "lot-11", label: "IBM", minPrice: 130, shape : { type: 'star', color: SHAPE_COLORS[2] } },
+  { id: "lot-12", label: "Oracle", minPrice: 85, shape : { type: 'diamond', color: SHAPE_COLORS[3] } },
+  { id: "lot-13", label: "Salesforce", minPrice: 170, shape : { type: 'circle', color: SHAPE_COLORS[4] } },
+  { id: "lot-14", label: "Adobe", minPrice: 220, shape : { type: 'square', color: SHAPE_COLORS[5] } },
+  { id: "lot-15", label: "PayPal", minPrice: 75, shape : { type: 'triangle', color: SHAPE_COLORS[6] } },
+  { id: "lot-16", label: "Square", minPrice: 65, shape : { type: 'hexagon', color: SHAPE_COLORS[7] } },
+  { id: "lot-17", label: "Uber", minPrice: 55, shape : { type: 'star', color: SHAPE_COLORS[0] } },
+  { id: "lot-18", label: "Lyft", minPrice: 45, shape : { type: 'diamond', color: SHAPE_COLORS[1] } },
+  { id: "lot-19", label: "Airbnb", minPrice: 140, shape : { type: 'circle', color: SHAPE_COLORS[2] } },
+  { id: "lot-20", label: "Spotify", minPrice: 80, shape : { type: 'square', color: SHAPE_COLORS[3] } },
+  { id: "lot-21", label: "Zoom", minPrice: 70, shape : { type: 'triangle', color: SHAPE_COLORS[4] } },
+  { id: "lot-22", label: "Slack", minPrice: 60, shape : { type: 'hexagon', color: SHAPE_COLORS[5] } },
+  { id: "lot-23", label: "Twitter", minPrice: 50, shape : { type: 'star', color: SHAPE_COLORS[6] } },
+  { id: "lot-24", label: "Snap", minPrice: 40, shape : { type: 'diamond', color: SHAPE_COLORS[7] } },
+  { id: "lot-25", label: "Pinterest", minPrice: 35, shape : { type: 'circle', color: SHAPE_COLORS[0] } },
 ];
 
 const initialState: AppState = {

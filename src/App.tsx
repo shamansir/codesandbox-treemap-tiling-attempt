@@ -4,7 +4,7 @@ import { AccountSelector } from "./Components/AccountSelector";
 import { ViewToggle } from "./Components/ViewToggle";
 import { TreeMapView } from "./Components/TreeMapView";
 import { ListView } from "./Components/ListView";
-import { lotListingToPlate } from "./Types";
+import { lotListingToPlate } from "./Types/Plate";
 
 export default function App() {
   const {

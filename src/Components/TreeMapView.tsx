@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import * as TreeMap from "../TreeMap/TreeMap";
-import { Plate } from "../Types";
+import { Plate } from "../Types/Plate";
+import { ShapeIcon } from "./ShapeIcon";
 
 
 export type Props = {
@@ -80,6 +81,7 @@ const TreeMapPlate: React.FC<
       >
         {source.label}
       </div>
+      <ShapeIcon shape={source.shape.type} color={source.shape.color} />
       <div style={{ fontSize: 9 }}>${source.currentValue.toFixed(2)}</div>
       {isEnabled && (
         <div

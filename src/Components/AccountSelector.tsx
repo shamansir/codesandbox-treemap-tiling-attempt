@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Account } from '../Types';
+import type { Account } from '../Types/Auction';
 
 interface Props {
   accounts: Account[];
